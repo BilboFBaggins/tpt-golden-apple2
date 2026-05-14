@@ -1,8 +1,25 @@
 exports.handler = async (event, context) => {
+  // CORS headers for browser requests
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  // Handle preflight OPTIONS request
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: 'OK',
+    };
+  }
+
   // Only allow POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers: corsHeaders,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
   }
@@ -13,6 +30,7 @@ exports.handler = async (event, context) => {
     if (!keyword || keyword.trim() === '') {
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Keyword required' }),
       };
     }
@@ -50,6 +68,7 @@ exports.handler = async (event, context) => {
     if (!data.results || !data.results[0] || !data.results[0].hits) {
       return {
         statusCode: 200,
+        headers: corsHeaders,
         body: JSON.stringify({ hits: [], message: 'No results found' }),
       };
     }
@@ -81,6 +100,7 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
+        ...corsHeaders,
       },
       body: JSON.stringify({
         hits: processed,
@@ -92,6 +112,7 @@ exports.handler = async (event, context) => {
     console.error('Proxy error:', error);
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ error: error.message }),
     };
   }
