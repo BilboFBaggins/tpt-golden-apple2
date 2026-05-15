@@ -25,7 +25,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { keyword } = JSON.parse(event.body);
+    const { keyword, gradeModifiers = [''] } = JSON.parse(event.body);
     
     if (!keyword || keyword.trim() === '') {
       return {
@@ -43,9 +43,8 @@ exports.handler = async (event, context) => {
       return new Promise(resolve => setTimeout(resolve, ms));
     };
 
-    // Strategy: Make requests with targeted keyword variations
-    // Keep variations focused and relevant to avoid noise
-    const keywordVariations = [
+    // Build keyword variations with grade modifiers
+    const baseVariations = [
       keyword,
       `${keyword} rubric`,
       `${keyword} prompt`,
@@ -53,6 +52,20 @@ exports.handler = async (event, context) => {
       `${keyword} format`,
       `${keyword} structure`,
     ];
+
+    // If grade modifiers provided, add them to all variations
+    const keywordVariations = [];
+    if (gradeModifiers.length === 1 && gradeModifiers[0] === '') {
+      // No grade filter = use base variations only
+      keywordVariations.push(...baseVariations);
+    } else {
+      // Add grade modifier to each base variation
+      gradeModifiers.forEach(grade => {
+        baseVariations.forEach(variation => {
+          keywordVariations.push(`${variation} ${grade}`.trim());
+        });
+      });
+    }
 
     let allHits = [];
     const seenKeywords = new Set(); // Track keywords we've already added
