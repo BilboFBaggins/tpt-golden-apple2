@@ -51,7 +51,7 @@ exports.handler = async (event, context) => {
           requests: [
             {
               indexName: 'Resource Suggestions',
-              params: `query=${keyword}&hitsPerPage=20`,
+              params: `query=${keyword}&hitsPerPage=50`,
             },
           ],
         }),
