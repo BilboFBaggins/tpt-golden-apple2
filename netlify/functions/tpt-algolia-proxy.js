@@ -37,35 +37,61 @@ exports.handler = async (event, context) => {
 
     const encodedKeyword = encodeURIComponent(keyword).replace(/'/g, '%27');
     
-    // Call TPT's Algolia API
-    const response = await fetch(
-      'https://SBEKGJSJ8M-dsn.algolia.net/1/indexes/*/queries',
-      {
-        method: 'POST',
-        headers: {
-          'X-Algolia-Application-Id': 'SBEKGJSJ8M',
-          'X-Algolia-API-Key': 'ce17b545c6ba0432cf638e0c29ee64ef',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requests: [
-            {
-              indexName: 'Resource Suggestions',
-              params: `query=${keyword}&hitsPerPage=50`,
-            },
-          ],
-        }),
-      }
-    );
+    // Helper function for random delay (0.25s to 2s)
+    const randomDelay = () => {
+      const ms = Math.random() * 1750 + 250; // 250-2000ms
+      return new Promise(resolve => setTimeout(resolve, ms));
+    };
 
-    if (!response.ok) {
-      throw new Error(`TPT API returned ${response.status}`);
+    // Fetch 5 pages of 10 results each to get ~50 total
+    let allHits = [];
+    const pageSize = 10;
+    const numPages = 5;
+
+    for (let page = 0; page < numPages; page++) {
+      // Random delay before each request (except first)
+      if (page > 0) {
+        await randomDelay();
+      }
+
+      const offset = page * pageSize;
+      const response = await fetch(
+        'https://SBEKGJSJ8M-dsn.algolia.net/1/indexes/*/queries',
+        {
+          method: 'POST',
+          headers: {
+            'X-Algolia-Application-Id': 'SBEKGJSJ8M',
+            'X-Algolia-API-Key': 'ce17b545c6ba0432cf638e0c29ee64ef',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                indexName: 'Resource Suggestions',
+                params: `query=${keyword}&hitsPerPage=${pageSize}&offset=${offset}`,
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`TPT API returned ${response.status} on page ${page}`);
+      }
+
+      const data = await response.json();
+
+      if (data.results && data.results[0] && data.results[0].hits) {
+        allHits = allHits.concat(data.results[0].hits);
+      }
+
+      // Stop early if we got fewer results than requested (end of results)
+      if (!data.results || !data.results[0] || data.results[0].hits.length < pageSize) {
+        break;
+      }
     }
 
-    const data = await response.json();
-    
-    // Extract and process results
-    if (!data.results || !data.results[0] || !data.results[0].hits) {
+    if (allHits.length === 0) {
       return {
         statusCode: 200,
         headers: corsHeaders,
@@ -73,7 +99,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const hits = data.results[0].hits;
+    const hits = allHits;
     
     // Process hits into our format
     const processed = hits.map((hit) => {
