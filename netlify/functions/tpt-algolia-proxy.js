@@ -43,15 +43,15 @@ exports.handler = async (event, context) => {
       return new Promise(resolve => setTimeout(resolve, ms));
     };
 
-    // Strategy: Make requests with keyword variations to get different result sets
-    // This works around Algolia's lack of offset-based pagination
+    // Strategy: Make requests with targeted keyword variations
+    // Keep variations focused and relevant to avoid noise
     const keywordVariations = [
       keyword,
-      `${keyword} activity`,
-      `${keyword} worksheet`,
-      `${keyword} template`,
-      `${keyword} guide`,
-      `${keyword} lesson`,
+      `${keyword} rubric`,
+      `${keyword} prompt`,
+      `${keyword} outline`,
+      `${keyword} format`,
+      `${keyword} structure`,
     ];
 
     let allHits = [];
