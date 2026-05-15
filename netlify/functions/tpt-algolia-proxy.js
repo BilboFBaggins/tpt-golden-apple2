@@ -43,18 +43,27 @@ exports.handler = async (event, context) => {
       return new Promise(resolve => setTimeout(resolve, ms));
     };
 
-    // Fetch 5 pages of 10 results each to get ~50 total
-    let allHits = [];
-    const pageSize = 10;
-    const numPages = 5;
+    // Strategy: Make requests with keyword variations to get different result sets
+    // This works around Algolia's lack of offset-based pagination
+    const keywordVariations = [
+      keyword,
+      `${keyword} activity`,
+      `${keyword} worksheet`,
+      `${keyword} template`,
+      `${keyword} guide`,
+      `${keyword} lesson`,
+    ];
 
-    for (let page = 0; page < numPages; page++) {
+    let allHits = [];
+    const seenKeywords = new Set(); // Track keywords we've already added
+
+    for (let i = 0; i < keywordVariations.length; i++) {
       // Random delay before each request (except first)
-      if (page > 0) {
+      if (i > 0) {
         await randomDelay();
       }
 
-      const offset = page * pageSize;
+      const variedKeyword = keywordVariations[i];
       const response = await fetch(
         'https://SBEKGJSJ8M-dsn.algolia.net/1/indexes/*/queries',
         {
@@ -68,7 +77,7 @@ exports.handler = async (event, context) => {
             requests: [
               {
                 indexName: 'Resource Suggestions',
-                params: `query=${keyword}&hitsPerPage=${pageSize}&offset=${offset}`,
+                params: `query=${variedKeyword}&hitsPerPage=10`,
               },
             ],
           }),
@@ -76,18 +85,19 @@ exports.handler = async (event, context) => {
       );
 
       if (!response.ok) {
-        throw new Error(`TPT API returned ${response.status} on page ${page}`);
+        throw new Error(`TPT API returned ${response.status} for variation "${variedKeyword}"`);
       }
 
       const data = await response.json();
 
       if (data.results && data.results[0] && data.results[0].hits) {
-        allHits = allHits.concat(data.results[0].hits);
-      }
-
-      // Stop early if we got fewer results than requested (end of results)
-      if (!data.results || !data.results[0] || data.results[0].hits.length < pageSize) {
-        break;
+        // Add only unique keywords (avoid duplicates)
+        data.results[0].hits.forEach(hit => {
+          if (!seenKeywords.has(hit.query)) {
+            allHits.push(hit);
+            seenKeywords.add(hit.query);
+          }
+        });
       }
     }
 
